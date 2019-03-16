@@ -21,7 +21,7 @@ func main() {
 
 	flag.Parse()
 
-	fmt.Printf("width: %d\nheight: %d\nminX: %f\nminY: %f\nmaxX: %f\nmaxY: %f\niterations: %d\nimagePath: %s",
+	fmt.Printf("width: %d\nheight: %d\nminX: %f\nminY: %f\nmaxX: %f\nmaxY: %f\niterations: %d\nimagePath: %s\n",
 		*pictureWidth,
 		*pictureHeight,
 		*viewRectangleMaxX,

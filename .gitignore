@@ -67,3 +67,4 @@ fabric.properties
 *.out
 
 *.png
+!docs/mandelbrot.png
