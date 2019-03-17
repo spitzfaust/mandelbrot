@@ -36,7 +36,7 @@ func (pc pixelCalculator) Calculate(pX, pY int) *ColorPoint {
 	zX := cX
 	zY := cY
 	n := 0
-	for ; n < pc.maxIterations; n += 1 {
+	for ; n < pc.maxIterations; n++ {
 		x := (zX*zX - zY*zY) + cX
 		y := (zY*zX + zX*zY) + cY
 		if (x*x + y*y) > 4 {

@@ -4,8 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"image"
-	"image/png"
-	"os"
 	"runtime"
 )
 
@@ -33,45 +31,40 @@ func main() {
 	numOfProcs := runtime.GOMAXPROCS(0)
 	fmt.Printf("GOMAXPROCS %d", numOfProcs)
 
-	pc := NewPixelCalculator(*iterations, * pictureWidth, *pictureHeight, *viewRectangleMaxX, *viewRectangleMaxY, *viewRectangleMinX, *viewRectangleMinY)
+	run(*iterations, *pictureWidth, *pictureHeight, *viewRectangleMaxX, *viewRectangleMaxY, *viewRectangleMinX, *viewRectangleMinY, numOfProcs, *imagePath, NewImageWriter())
+}
 
-	img := image.NewRGBA(image.Rect(0, 0, *pictureWidth, *pictureHeight))
-
-	numberOfPoints := *pictureWidth * *pictureHeight
-
-	points := make(chan point, 10)
-	calculatedPoints := make(chan *ColorPoint, 10)
-
-	for w := 0; w < numOfProcs; w += 1 {
+func run(iterations int, pictureWidth int, pictureHeight int, viewRectangleMaxX float64, viewRectangleMaxY float64, viewRectangleMinX float64, viewRectangleMinY float64, numOfProcs int, imagePath string, imageWriter ImageWriter) {
+	pc := NewPixelCalculator(iterations, pictureWidth, pictureHeight, viewRectangleMaxX, viewRectangleMaxY, viewRectangleMinX, viewRectangleMinY)
+	numberOfPoints := pictureWidth * pictureHeight
+	// create two buffered channels
+	// One for the points to calculate and one for the results
+	points := make(chan point, numberOfPoints)
+	calculatedPoints := make(chan *ColorPoint, numberOfPoints)
+	// Start workers
+	for w := 0; w < numOfProcs; w++ {
 		go worker(pc, points, calculatedPoints)
 	}
-
+	// Fill the channel with points that should be calculated
 	go addPointsToCalculate(pictureWidth, pictureHeight, points)
+	done := make(chan bool)
+	img := image.NewRGBA(image.Rect(0, 0, pictureWidth, pictureHeight))
+	go createImage(numberOfPoints, calculatedPoints, img, imagePath, imageWriter, done)
+	<-done
+}
 
-	for i := 0; i < numberOfPoints; i += 1 {
+func createImage(numberOfPoints int, calculatedPoints <-chan *ColorPoint, img *image.RGBA, imagePath string, imageWriter ImageWriter, done chan<- bool) {
+	for i := 0; i < numberOfPoints; i++ {
 		colorPoint := <-calculatedPoints
 		img.Set(colorPoint.x, colorPoint.y, colorPoint.color)
 	}
-
-	// outputFile is a File type which satisfies Writer interface
-	outputFile, err := os.Create(*imagePath)
-	if err != nil {
-		panic(err)
-	}
-	defer outputFile.Close()
-
-	// Encode takes a writer interface and an image interface
-	// We pass it the File and the RGBA
-	err = png.Encode(outputFile, img)
-	if err != nil {
-		panic(err)
-	}
-
+	imageWriter.Write(imagePath, img)
+	done <- true
 }
 
-func addPointsToCalculate(pictureWidth *int, pictureHeight *int, points chan<- point) {
-	for pX := 0; pX < *pictureWidth; pX += 1 {
-		for pY := 0; pY < *pictureHeight; pY += 1 {
+func addPointsToCalculate(pictureWidth int, pictureHeight int, points chan<- point) {
+	for pX := 0; pX < pictureWidth; pX++ {
+		for pY := 0; pY < pictureHeight; pY++ {
 			points <- point{x: pX, y: pY}
 		}
 	}
